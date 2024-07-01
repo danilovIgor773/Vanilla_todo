@@ -1,8 +1,7 @@
 # Vanilla_todo
 
 ## Purpose
-This repository contains a simple application written without additional dependencies front-end application that helps to do CRUD operations to OEM management resources.
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This repository contains a simple application written without additional dependencies
 
 ### Technologies
 - [Front-end:] HTML, CSS, JavaScript
