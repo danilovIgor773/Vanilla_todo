@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as http from "node:http";
 import * as path from "node:path";
+import { _toBool } from "./utils.mjs";
 
 const PORT = 3000;
 
@@ -17,15 +18,31 @@ const MIME_TYPES = {
 };
 
 const STATIC_PATH = path.join(process.cwd(), './client');
+const TODO_TASKS_PATH = path.join(process.cwd(), './data/tasks.json');
 
-const toBool = [() => true, () => false];
+const getTodoTasks = async () => {
+  const data = await fs.promises.readFile(TODO_TASKS_PATH, { encoding: 'utf8' });
+
+  console.log('[getTodoTasks] data', data);
+  return JSON.parse(data);
+};
+
+const handleGetTasks = async (req, res) => {
+  const { url, method } = req;
+  if (url === '/tasks' && method === 'GET') {
+    console.log('[handleGetTasks] YAY');
+    const tasks = await getTodoTasks();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(tasks));
+  }
+};
 
 const prepareFile = async (url) => {
   const paths = [STATIC_PATH, url];
   if (url.endsWith("/")) paths.push("index.html");
   const filePath = path.join(...paths);
   const pathTraversal = !filePath.startsWith(STATIC_PATH);
-  const exists = await fs.promises.access(filePath).then(...toBool);
+  const exists = await fs.promises.access(filePath).then(..._toBool);
   const found = !pathTraversal && exists;
   const streamPath = found ? filePath : STATIC_PATH + "/404.html";
   const ext = path.extname(streamPath).substring(1).toLowerCase();
@@ -36,12 +53,17 @@ const prepareFile = async (url) => {
 
 http
   .createServer(async (req, res) => {
-    const file = await prepareFile(req.url);
-    const statusCode = file.found ? 200 : 404;
-    const mimeType = MIME_TYPES[file.ext] || MIME_TYPES.default;
-    res.writeHead(statusCode, { "Content-Type": mimeType });
-    file.stream.pipe(res);
-    console.log(`${req.method} ${req.url} ${statusCode}`);
+    if (req.url.startsWith("/tasks")) {
+      await handleGetTasks(req, res);
+    } else {
+      const file = await prepareFile(req.url);
+      const statusCode = file.found ? 200 : 404;
+      const mimeType = MIME_TYPES[file.ext] || MIME_TYPES.default;
+      res.writeHead(statusCode, { "Content-Type": mimeType });
+      file.stream.pipe(res);
+      console.log(`${req.method} ${req.url} ${statusCode}`);
+    }
+
   })
   .listen(PORT);
 
