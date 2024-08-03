@@ -1,28 +1,11 @@
-import * as fs from "node:fs";
+import * as fs from 'node:fs';
 import * as http from "node:http";
 import * as path from "node:path";
-import { _toBool } from "./utils.mjs";
-
-const PORT = 3000;
-
-const MIME_TYPES = {
-  default: "application/octet-stream",
-  html: "text/html; charset=UTF-8",
-  js: "application/javascript",
-  css: "text/css",
-  png: "image/png",
-  jpg: "image/jpg",
-  gif: "image/gif",
-  ico: "image/x-icon",
-  svg: "image/svg+xml",
-};
-
-const STATIC_PATH = path.join(process.cwd(), './client');
-const TODO_TASKS_PATH = path.join(process.cwd(), './data/tasks.json');
+import { _handleCORSSetup, _incrementTaskId, _handleNotAllowedMethod } from "./utils.mjs";
+import { PORT, STATIC_DIR, DATA_DIR, TASKS_FILE, MIME_TYPES } from './config.mjs';
 
 const getTodoTasks = async () => {
-  const data = await fs.promises.readFile(TODO_TASKS_PATH, { encoding: 'utf8' });
-
+  const data = await fs.promises.readFile(path.join(DATA_DIR, TASKS_FILE), 'utf8');
   console.log('[getTodoTasks] data', data);
   return JSON.parse(data);
 };
@@ -30,41 +13,84 @@ const getTodoTasks = async () => {
 const handleGetTasks = async (req, res) => {
   const { url, method } = req;
   if (url === '/tasks' && method === 'GET') {
-    console.log('[handleGetTasks] YAY');
     const tasks = await getTodoTasks();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(tasks));
   }
 };
 
-const prepareFile = async (url) => {
-  const paths = [STATIC_PATH, url];
-  if (url.endsWith("/")) paths.push("index.html");
-  const filePath = path.join(...paths);
-  const pathTraversal = !filePath.startsWith(STATIC_PATH);
-  const exists = await fs.promises.access(filePath).then(..._toBool);
-  const found = !pathTraversal && exists;
-  const streamPath = found ? filePath : STATIC_PATH + "/404.html";
-  const ext = path.extname(streamPath).substring(1).toLowerCase();
-  const stream = fs.createReadStream(streamPath);
-  return { found, ext, stream };
+const handleCreateTask = async (req, res) => {
+  let body = '';
+
+  req.on('data', chunk => {
+    body += chunk.toString();
+  });
+
+  req.on('end', async () => {
+    const task = JSON.parse(body);
+    const currentTasksList = await getTodoTasks();
+    task.id = _incrementTaskId(currentTasksList);
+
+    currentTasksList.push(task);
+
+    await fs.promises.writeFile(path.join(DATA_DIR, TASKS_FILE), JSON.stringify(currentTasksList, null, 2));
+
+    res.writeHead(201, {'Content-Type': 'application/json'});
+    res.end(JSON.stringify(currentTasksList));
+  });
 };
 
+const handleDeleteTask = async (req, res) => {
+  const taskId = parseInt(req.url.split('/').pop());
 
-http
-  .createServer(async (req, res) => {
-    if (req.url.startsWith("/tasks")) {
+  let tasks = await getTodoTasks();
+  tasks = tasks.filter(task => task.id !== taskId);
+  console.log('[HEREhandleDeleteTask] TASKS', tasks);
+
+  await fs.promises.writeFile(path.join(DATA_DIR, TASKS_FILE), JSON.stringify(tasks, null, 2));
+
+  res.writeHead(200, {'Content-Type': 'application/json'});
+  res.end(JSON.stringify(tasks));
+};
+
+const getFile = async (filePath) => {
+  const fullPath = path.join(STATIC_DIR, filePath);
+
+  try {
+    const data = await fs.promises.readFile(fullPath);
+    const contentType = MIME_TYPES[path.extname(filePath)] || MIME_TYPES.default;
+    return { data, contentType, status: 200 };
+  } catch (error) {
+    const notFoundPath = path.join(STATIC_DIR, '404.html');
+    const data = await fs.promises.readFile(notFoundPath);
+    return { data, contentType: 'text/html', status: 404 };
+  }
+}
+
+const server = http.createServer(async (req, res) => {
+  const isCORSHandled = _handleCORSSetup(req, res);
+  if(isCORSHandled) return;
+
+  if (req.url.startsWith('/tasks')) {
+    if(req.method === 'GET') {
       await handleGetTasks(req, res);
+    } else if(req.method === 'POST') {
+      await handleCreateTask(req, res);
+    }  else if(req.method === 'DELETE') {
+      await handleDeleteTask(req, res);
     } else {
-      const file = await prepareFile(req.url);
-      const statusCode = file.found ? 200 : 404;
-      const mimeType = MIME_TYPES[file.ext] || MIME_TYPES.default;
-      res.writeHead(statusCode, { "Content-Type": mimeType });
-      file.stream.pipe(res);
-      console.log(`${req.method} ${req.url} ${statusCode}`);
+      _handleNotAllowedMethod();
     }
+  } else if (req.method === 'GET') {
+    const filePath = req?.url === '/' ? '/index.html' : req?.url;
+    const { data, contentType, status } = await getFile(filePath);
+    res.writeHead(status, { 'Content-Type': contentType });
+    res.end(data);
+  } else {
+    _handleNotAllowedMethod();
+  }
+});
 
-  })
-  .listen(PORT);
-
-console.log(`Server running at http://127.0.0.1:${PORT}/`);
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}/`);
+});
