@@ -6,7 +6,7 @@ import { PORT, STATIC_DIR, DATA_DIR, TASKS_FILE, MIME_TYPES } from './config.mjs
 
 const getTodoTasks = async () => {
   const data = await fs.promises.readFile(path.join(DATA_DIR, TASKS_FILE), 'utf8');
-  console.log('[getTodoTasks] data', data);
+  // console.log('[getTodoTasks] data', data);
   return JSON.parse(data);
 };
 

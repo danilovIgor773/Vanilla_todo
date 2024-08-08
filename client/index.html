@@ -5,15 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vanilla ToDo</title>
     <link rel="stylesheet" type="text/css" href="style.css">
+    <style>
+      my-counter {
+        display: block;
+        margin-block: 1rem;
+      }
+    </style>
   </head>
   <body>
-    <div class="container">
-      <h1>Vanilla ToDo</h1>
-      <input type="text" id="todo-input" placeholder="Enter new task and press Enter">
-      <div class="todo-list">
 
-      </div>
+    <template>
+
+    </template>
+
+    <div class="container">
+      <!-- <p id="counter">0</p>
+      <button id="inc">+</button>
+      <button id="dec">-</button> -->
+      <script>
+        // const p = document.getElementById('counter');
+        // const inc = document.getElementById('inc');
+        // const dec = document.getElementById('dec');
+        // let c = 0;
+        // inc.addEventListener('click', count(1));
+        // dec.addEventListener('click', count(-1));
+        // function count(dir) {
+        //   return () => {
+        //     c += dir;
+        //     p.innerText = c;
+        //   }
+        // }
+
+        customElements.define('my-counter', class extends HTMLElement {
+          constructor() {
+            super();
+            this.c = 0;
+          }
+          connectedCallback() {
+            this.innerHTML = `
+              <p data-counter>0</p>
+              <button data-inc>+</button>
+              <button data-dec>-</button>
+            `;
+            this.p = this.querySelector('[data-counter]');
+            this.inc = this.querySelector('[data-inc]');
+            this.dec = this.querySelector('[data-dec]');
+            this.inc.addEventListener('click', this.count(1).bind(this));
+            this.dec.addEventListener('click', this.count(-1).bind(this));
+          }
+          count(dir) {
+            return () => {
+              this.c += dir;
+              this.p.innerText = this.c;
+            }
+          }
+        })
+
+       
+      </script>
+
+      <h1>Vanilla ToDo</h1>
+      <main id="main">
+
+      </main>
+      <button id="addCounter">add counter</button>
+      <form id="main-form">
+        <input type="text" id="todo-input" placeholder="Enter new task and press Enter" name="todo">
+        <div class="todo-list">
+
+        </div>
+      </form>
     </div>
+    <script>
+       const cb = document.getElementById('addCounter');
+        const main = document.getElementById('main');
+        cb.addEventListener('click', () => {
+          const nc = document.createElement('my-counter');
+          main.appendChild(nc);
+        })
+    </script>
     <script src="index.js"></script>
   </body>
 </html>

@@ -1,15 +1,27 @@
 console.log('Hello, World!');
 
-document.getElementById('todo-input').addEventListener('keypress', function(event) {
-  if(event.key === "Enter") {
-    const taskDescription = this.value.trim();
+const form = document.getElementById('main-form');
 
-    if(taskDescription) {
-      createTask(taskDescription);
-      this.value = '';
-    }
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const data = new FormData(form);
+  const desc = data.get('todo').trim();
+  if(desc !== '') {
+      createTask(desc);
   }
-});
+  form.reset();
+})
+
+// document.getElementById('todo-input').addEventListener('keypress', function(event) {
+//   if(event.key === "Enter") {
+//     const taskDescription = this.value.trim();
+
+//     if(taskDescription) {
+//       createTask(taskDescription);
+//       this.value = '';
+//     }
+//   }
+// });
 
 function attachCheckboxListener(checkbox, taskId) {
   checkbox.addEventListener('change', () => {
